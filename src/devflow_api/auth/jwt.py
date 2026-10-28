@@ -67,7 +67,7 @@ def decode_access_token(token: str) -> dict[str, str]:
     try:
         raw = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return {str(k): str(v) for k, v in raw.items()}
-    except jwt.ExpiredSignatureError as exc:  # pragma: no cover - deterministic by tests
+    except jwt.ExpiredSignatureError as exc:
         raise TokenError("token expired") from exc
     except jwt.InvalidTokenError as exc:
         raise TokenError("token invalid") from exc
