@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Final
@@ -14,7 +15,19 @@ import jwt
 
 # Demo secret — never use a hard-coded secret in production. In real code this
 # would come from settings / env.
-JWT_SECRET: Final[str] = "devflow-demo-secret-change-me"
+DEFAULT_DEMO_SECRET: Final[str] = "devflow-demo-secret-change-me-change-this-in-production-env"
+_raw_secret = os.getenv("DEVFLOW_JWT_SECRET")
+
+
+def _validate_secret(raw: str | None) -> str:
+    if raw:
+        if len(raw.encode()) < 32:
+            raise RuntimeError("DEVFLOW_JWT_SECRET must be at least 32 bytes")
+        return raw
+    return DEFAULT_DEMO_SECRET
+
+
+JWT_SECRET = _validate_secret(_raw_secret)
 JWT_ALGORITHM: Final[str] = "HS256"
 ACCESS_TOKEN_MINUTES: Final[int] = 30
 
