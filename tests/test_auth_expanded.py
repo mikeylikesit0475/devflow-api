@@ -5,8 +5,8 @@ import base64
 import hashlib
 import hmac
 import importlib
-import inspect
 import json
+import os
 import sys
 import time
 
@@ -53,27 +53,28 @@ def test_verify_password_empty_digest_is_false() -> None:
 def test_hash_password_output_format() -> None:
     raw = "correct-horse-battery-staple"
     stored = hash_password(raw)
-    salt, digest = stored.split("$", 1)
-    assert salt != ""
-    assert len(salt) == 16
-    assert len(digest) == 64
-    assert digest == hashlib.sha256((salt + raw).encode()).hexdigest()
+    assert stored.startswith("$2b$")
+    assert verify_password(raw, stored)
+    assert not verify_password("wrong", stored)
 
 
 def test_hash_password_unique_salts() -> None:
-    salts = {hash_password("same-input").split("$", 1)[0] for _ in range(100)}
-    assert len(salts) == 100
+    salts = {hash_password("same-input") for _ in range(5)}
+    assert len(salts) == 5
 
 
 def test_verify_password_tampered_digest_is_false() -> None:
     stored = hash_password("raw")
-    salt, _ = stored.split("$", 1)
-    assert not verify_password("raw", f"{salt}${'0' * 64}")
+    tampered = stored[:-1] + ("0" if stored[-1] != "0" else "1")
+    assert not verify_password("raw", tampered)
 
 
-def test_verify_password_uses_hmac_compare_digest() -> None:
-    source = inspect.getsource(auth_jwt.verify_password)
-    assert "hmac.compare_digest" in source
+def test_hash_password_truncates_at_72_bytes() -> None:
+    raw = "a" * 100
+    stored = hash_password(raw)
+    assert verify_password(raw, stored)
+    assert verify_password("a" * 72, stored)
+    assert not verify_password("a" * 71 + "b", stored)
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +206,7 @@ def test_jwt_secret_too_short_raises_on_import(monkeypatch: pytest.MonkeyPatch) 
     finally:
         monkeypatch.delenv("DEVFLOW_JWT_SECRET", raising=False)
         sys.modules.pop("devflow_api.auth.jwt", None)
+        os.environ["DEVFLOW_JWT_SECRET"] = "x" * 64
         importlib.import_module("devflow_api.auth.jwt")
 
 
@@ -217,8 +219,17 @@ def test_jwt_secret_long_enough_imports(monkeypatch: pytest.MonkeyPatch) -> None
     finally:
         monkeypatch.delenv("DEVFLOW_JWT_SECRET", raising=False)
         sys.modules.pop("devflow_api.auth.jwt", None)
+        os.environ["DEVFLOW_JWT_SECRET"] = "x" * 64
         importlib.import_module("devflow_api.auth.jwt")
 
 
-def test_default_demo_secret_meets_minimum() -> None:
-    assert len(auth_jwt.DEFAULT_DEMO_SECRET.encode()) >= 32
+def test_jwt_secret_unset_raises_on_import(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DEVFLOW_JWT_SECRET", raising=False)
+    sys.modules.pop("devflow_api.auth.jwt", None)
+    try:
+        with pytest.raises(RuntimeError):
+            importlib.import_module("devflow_api.auth.jwt")
+    finally:
+        sys.modules.pop("devflow_api.auth.jwt", None)
+        os.environ.setdefault("DEVFLOW_JWT_SECRET", "x" * 64)
+        importlib.import_module("devflow_api.auth.jwt")
