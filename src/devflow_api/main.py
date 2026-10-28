@@ -1,6 +1,10 @@
 """FastAPI application factory and entrypoint."""
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from .auth.dependencies import require_user
 
 
 def create_app() -> FastAPI:
@@ -17,6 +21,10 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/me", tags=["auth"])
+    async def me(payload: Annotated[dict[str, object], Depends(require_user)]) -> dict[str, object]:
+        return {"sub": str(payload["sub"])}
 
     return app
 
