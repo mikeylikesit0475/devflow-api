@@ -4,30 +4,32 @@ Kept free of FastAPI / DB concerns so they are trivially testable.
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
 import os
-import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
 import jwt
+from passlib.context import CryptContext  # type: ignore[import-untyped]
 
-# Demo secret — never use a hard-coded secret in production. In real code this
-# would come from settings / env.
-DEFAULT_DEMO_SECRET: Final[str] = "devflow-demo-secret-change-me-change-this-in-production-env"
+# bcrypt only uses the first 72 bytes of a password; truncate explicitly so
+# two inputs differing only past that boundary can never silently collide.
+BCRYPT_MAX_PASSWORD_BYTES: Final[int] = 72
+
+_pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,
+)
+
+
 _raw_secret = os.getenv("DEVFLOW_JWT_SECRET")
-
-
-def _validate_secret(raw: str | None) -> str:
-    if raw:
-        if len(raw.encode()) < 32:
-            raise RuntimeError("DEVFLOW_JWT_SECRET must be at least 32 bytes")
-        return raw
-    return DEFAULT_DEMO_SECRET
-
-
-JWT_SECRET = _validate_secret(_raw_secret)
+if _raw_secret is None or not _raw_secret.strip():
+    raise RuntimeError(
+        "DEVFLOW_JWT_SECRET is required and must be at least 32 bytes"
+    )
+if len(_raw_secret.encode("utf-8")) < 32:
+    raise RuntimeError("DEVFLOW_JWT_SECRET must be at least 32 bytes")
+JWT_SECRET: Final[str] = _raw_secret
 JWT_ALGORITHM: Final[str] = "HS256"
 ACCESS_TOKEN_MINUTES: Final[int] = 30
 
@@ -37,18 +39,20 @@ class TokenError(ValueError):
 
 
 def hash_password(raw: str) -> str:
-    salt = secrets.token_hex(8)
-    digest = hashlib.sha256((salt + raw).encode()).hexdigest()
-    return f"{salt}${digest}"
+    """Hash ``raw`` with bcrypt (cost 12), truncating at 72 bytes explicitly."""
+    truncated = raw.encode("utf-8")[:BCRYPT_MAX_PASSWORD_BYTES]
+    return str(_pwd_context.hash(truncated))
 
 
 def verify_password(raw: str, stored: str) -> bool:
-    try:
-        salt, digest = stored.split("$", 1)
-    except ValueError:
+    """Verify ``raw`` against a bcrypt ``stored`` hash."""
+    if not raw or not stored:
         return False
-    computed = hashlib.sha256((salt + raw).encode()).hexdigest()
-    return hmac.compare_digest(computed, digest)
+    try:
+        truncated = raw.encode("utf-8")[:BCRYPT_MAX_PASSWORD_BYTES]
+        return bool(_pwd_context.verify(truncated, stored))
+    except Exception:
+        return False
 
 
 def create_access_token(subject: str, minutes: int = ACCESS_TOKEN_MINUTES) -> str:
