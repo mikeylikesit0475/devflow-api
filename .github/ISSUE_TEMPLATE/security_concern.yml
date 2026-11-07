@@ -1,0 +1,38 @@
+name: Security concern
+description: Report a security vulnerability (responsible disclosure)
+labels: ["security", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting responsibly. Please do not disclose publicly
+        until we have had a chance to investigate and patch.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Brief description of the vulnerability.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What could an attacker do?
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      value: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected versions / components
+  - type: textarea
+    id: contact
+    attributes:
+      label: Contact
+      description: How can we reach you for follow-up?

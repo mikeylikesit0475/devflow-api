@@ -53,7 +53,7 @@ def test_verify_password_empty_digest_is_false() -> None:
 def test_hash_password_output_format() -> None:
     raw = "correct-horse-battery-staple"
     stored = hash_password(raw)
-    assert stored.startswith("$2b$")
+    assert stored.startswith("$argon2id$")
     assert verify_password(raw, stored)
     assert not verify_password("wrong", stored)
 
@@ -69,12 +69,11 @@ def test_verify_password_tampered_digest_is_false() -> None:
     assert not verify_password("raw", tampered)
 
 
-def test_hash_password_truncates_at_72_bytes() -> None:
+def test_hash_password_handles_long_passwords() -> None:
     raw = "a" * 100
     stored = hash_password(raw)
     assert verify_password(raw, stored)
-    assert verify_password("a" * 72, stored)
-    assert not verify_password("a" * 71 + "b", stored)
+    assert not verify_password("a" * 99 + "b", stored)
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ branches, pull requests, CI gates, code review, and releases.
 ## Stack
 - Python 3.11+
 - FastAPI
-- PyJWT, passlib[bcrypt]
+- PyJWT, passlib[argon2]
 - pytest + httpx (TestClient); ruff + mypy for the gate
 
 ## Quick start

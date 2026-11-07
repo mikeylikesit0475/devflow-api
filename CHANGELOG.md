@@ -11,4 +11,4 @@
 - Advisory: v0.1.0 requires `DEVFLOW_JWT_SECRET` (≥32 bytes). Starting without it now refuses to boot (fail-closed). Previously the service would silently sign tokens with a publicly-known default secret — rotate any tokens issued before upgrade.
 
 ### Dependencies
-- Passwords migrated from salted SHA-256 to bcrypt (cost 12).
+- Passwords migrated from bcrypt (cost 12) to Argon2id (passlib default cost).
