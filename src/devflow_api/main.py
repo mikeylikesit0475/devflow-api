@@ -9,9 +9,9 @@ from .auth.dependencies import require_user
 from .auth.jwt import (
     ACCESS_TOKEN_MINUTES,
     TokenError,
+    create_access_token,
     create_refresh_token,
     decode_refresh_token,
-    refresh_access_token,
     revoke_token,
 )
 
@@ -37,11 +37,6 @@ async def _read_token(request: Request) -> str | None:
                 return value
     except Exception:
         pass
-    # Query params
-    for key in keys:
-        value = request.query_params.get(key)
-        if value:
-            return value
     # Authorization header
     auth = request.headers.get("authorization", "")
     if auth.lower().startswith("bearer "):
@@ -77,7 +72,8 @@ def create_app() -> FastAPI:
             )
         try:
             payload = decode_refresh_token(token)
-            access = refresh_access_token(token)
+            access = create_access_token(payload["sub"], minutes=ACCESS_TOKEN_MINUTES)
+            revoke_token(token)
         except TokenError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
